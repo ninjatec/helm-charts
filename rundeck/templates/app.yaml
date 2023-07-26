@@ -1,0 +1,122 @@
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ .Release.Name }}-service
+spec:
+  selector:
+    app: rundeck-k8s
+  type: ClusterIP
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 4440
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-deployment
+  namespace: {{ .Release.Namespace }}
+  serviceName: {{ .Release.Name }}-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+        version: "9"
+    spec:
+      serviceAccountName: {{ .Release.Name }}-sa
+      containers:
+        - name: {{ .Release.Name }}
+          image: ninjatec/rundeck-k8s:latest
+          securityContext:
+            # To match rundeck user UID!
+            runAsUser: 1000
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: rundeck-k8s-realm-properties
+              mountPath: /home/rundeck/server/config/realm.properties
+              subPath: realm.properties
+            - name: created-kube-config
+              mountPath: /home/rundeck/.kube/
+          envFrom:
+            - secretRef:
+                name: rundeck-k8s-secret
+          env:
+            - name: RUNDECK_DATABASE_DRIVER 
+              value: org.postgresql.Driver
+            - name: RUNDECK_DATABASE_URL
+              value: jdbc:postgresql://db-postgres-service.support-tools.svc.cluster.local:5432/postgres?autoReconnect=true&useSSL=true&allowPublicKeyRetrieval=true
+            - name: RUNDECK_GRAILS_URL
+              value: "https://k8s.ninjatec.co.uk/rundeck"
+            - name: RUNDECK_SERVER_CONTEXTPATH
+              value: /rundeck
+            - name: RUNDECK_SERVER_FORWARDED
+              value: "true"
+            - name: RUNDECK_SECURITY_HTTPHEADERS_ENABLED
+              value: "0"
+          ports:
+            - name: web-server
+              containerPort: 4440
+          livenessProbe:
+            httpGet:
+              path: /rundeck
+              port: 4440
+              scheme: HTTP
+            initialDelaySeconds: 500
+            periodSeconds: 120
+          readinessProbe:
+            httpGet:
+              path: /rundeck
+              port: 4440
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 200m
+              memory: 1250Mi
+            limits:
+              cpu: 2000m
+              memory: 2048Mi
+      initContainers:
+        - name: prepare-kube-config
+          image: bitnami/kubectl:latest
+          securityContext:
+            # To match rundeck user UID!
+            runAsUser: 1000
+          volumeMounts:
+            - mountPath: /tmp/target
+              name: created-kube-config
+          command:
+            - sh
+            - "-ce"
+            - |
+              set -ex
+              SERVICE_ACCOUNT_API_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              kubectl config set-cluster kubernetes \
+              --server=https://{{ .Values.app.k8s_host }}:6443 \
+              --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt  \
+              --embed-certs=true
+              kubectl config set-credentials rundeck-deployer --token=$SERVICE_ACCOUNT_API_TOKEN
+              kubectl config set-context kubernetes --cluster kubernetes --user rundeck-deployer
+              kubectl config use-context kubernetes
+              cp -r /.kube/* /tmp/target/
+      volumes:
+        - name: rundeck-k8s-realm-properties
+          secret:
+            secretName: rundeck-k8s-realm-properties-secret
+        - name: acl
+          secret:
+            secretName: rundeckpro-admin-acl
+        - name: created-kube-config
+          emptyDir: { }
+        - name: ssh-key
+          secret:
+            secretName: rundeck-ssh-key
