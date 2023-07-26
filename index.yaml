@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  rundeck:
+  - apiVersion: v2
+    appVersion: 1.16.0
+    created: "2023-07-26T19:04:05.758946575+01:00"
+    description: A Helm chart for rundeck on k8s
+    digest: 1ed176a86e9a4580b93914db7c439c0eb162ee3c4c03561f8e0db41873f01c34
+    name: rundeck
+    type: application
+    urls:
+    - https://ninjatec.github.io/rundeck-0.1.0.tgz
+    version: 0.1.0
+generated: "2023-07-26T19:04:05.758533956+01:00"
