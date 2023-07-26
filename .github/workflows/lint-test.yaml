@@ -33,19 +33,6 @@ jobs:
         with:
           python-version: 3.7
 
-      - name: Set up chart-testing
-        uses: helm/chart-testing-action@v2.2.1
-        with:
-          version: v3.5.1
-
-      - name: Run chart-testing (list-changed)
-        id: list-changed
-        run: |
-          changed=$(ct list-changed)
-          if [[ -n "$changed" ]]; then
-            echo "::set-output name=changed::true"
-          fi
-
       - name: Run chart-testing (lint)
         run: ct lint
 
