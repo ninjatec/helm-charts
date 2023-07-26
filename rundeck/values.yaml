@@ -1,0 +1,14 @@
+---
+app:
+  k8s_host: k8s.lab.local
+  
+  global:
+    namespace: support-tools
+    app-name: rundeck
+
+  secrets:
+    database_user: postres
+    database_password: postgres
+    ssh_key: none
+    enc_password: SausagesAreSecure
+    realm_properties: YWRtaW46YWRtaW4sdXNlcixhZG1pbixhcmNoaXRlY3QsZGVwbG95LGJ1aWxk
