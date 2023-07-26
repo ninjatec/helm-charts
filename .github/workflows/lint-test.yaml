@@ -5,10 +5,10 @@ name: Lint and Test Charts
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - master
+      - main
 
 jobs:
   lint-test:
